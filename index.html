@@ -2,52 +2,84 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Shift Report</title>
+
 <style>
 body {
-  font-family: Arial;
   margin: 0;
-  background: #f5f5f5;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f6f6f6;
+  color: #111;
 }
 
 .container {
-  max-width: 500px;
+  max-width: 480px;
   margin: auto;
-  padding: 20px;
-}
-
-.card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  margin-top: 20px;
-}
-
-button {
-  padding: 12px;
-  margin-top: 10px;
-  width: 100%;
-  border: none;
-  border-radius: 8px;
-  background: black;
-  color: white;
-  font-size: 16px;
-}
-
-input, select {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
+  padding: 16px;
+  padding-bottom: 100px;
 }
 
 .topbar {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
-.lang-btn {
+.title {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.lang {
+  font-size: 14px;
   background: none;
-  color: black;
+  border: none;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+.primary {
+  background: black;
+  color: white;
+}
+
+.input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #ddd;
+  padding: 10px 0;
+  font-size: 16px;
+}
+
+.fixed-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  padding: 12px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+}
+
+.hidden {
+  display: none;
 }
 </style>
 </head>
@@ -57,51 +89,54 @@ input, select {
 <div class="container">
 
   <div class="topbar">
-    <h3 id="title">בחירת מנהל</h3>
-    <button class="lang-btn" onclick="toggleLang()">HE / RU</button>
+    <div class="title" id="title"></div>
+    <button class="lang" onclick="toggleLang()">HE / RU</button>
   </div>
 
   <div id="app"></div>
 
 </div>
 
+<div class="fixed-bottom hidden" id="bottomBar">
+  <button class="button primary" onclick="nextAction()" id="mainBtn"></button>
+</div>
+
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbw1nZgGTE24ITeppnLV9jVuY9zlfFzMxVaeP4mG_DGlaGXbIMNim9BSRhC5sllwHF-I/exec";
 
 let lang = "he";
+let screen = "select";
 let managers = [];
 let selectedManager = null;
 let isNew = false;
 
-// 🌍 переводы
 const t = {
   he: {
-    selectManager: "בחירת מנהל",
-    addManager: "הוסף מנהל",
-    enterPin: "הכנס קוד PIN",
-    createPin: "צור קוד PIN",
+    select: "בחירת מנהל",
+    add: "הוסף מנהל",
+    pin: "קוד PIN",
+    create: "צור PIN",
     next: "המשך",
-    wrongPin: "קוד שגוי",
-    report: "דוח"
+    report: "דוח",
+    start: "התחל דוח"
   },
   ru: {
-    selectManager: "Выбор менеджера",
-    addManager: "Добавить менеджера",
-    enterPin: "Введите PIN",
-    createPin: "Создайте PIN",
+    select: "Выбор менеджера",
+    add: "Добавить менеджера",
+    pin: "Введите PIN",
+    create: "Создать PIN",
     next: "Далее",
-    wrongPin: "Неверный PIN",
-    report: "Отчет"
+    report: "Отчет",
+    start: "Начать отчет"
   }
 };
 
-// 🔄 язык
 function toggleLang() {
   lang = lang === "he" ? "ru" : "he";
+  document.body.dir = lang === "he" ? "rtl" : "ltr";
   render();
 }
 
-// 📡 запрос
 async function api(action, data = {}) {
   const res = await fetch(API_URL, {
     method: "POST",
@@ -110,104 +145,93 @@ async function api(action, data = {}) {
   return res.json();
 }
 
-// 🧠 загрузка менеджеров
 async function loadManagers() {
   managers = await api("getManagers");
   render();
 }
 
-// 🖥️ РЕНДЕР
-
 function render() {
-  document.getElementById("title").innerText = t[lang].selectManager;
+  document.getElementById("title").innerText = t[lang][screen] || "";
 
-  if (!selectedManager) {
-    renderManagerSelect();
-  } else {
-    renderPin();
-  }
+  if (screen === "select") renderSelect();
+  if (screen === "pin") renderPin();
+  if (screen === "success") renderSuccess();
 }
 
-// 👤 выбор менеджера
-function renderManagerSelect() {
+function renderSelect() {
+  document.getElementById("bottomBar").classList.add("hidden");
+
   let html = "";
 
   managers.forEach(name => {
-    html += `<button onclick="selectManager('${name}', false)">${name}</button>`;
+    html += `<div class="card" onclick="choose('${name}', false)">${name}</div>`;
   });
 
-  html += `<button onclick="selectManager('', true)">${t[lang].addManager}</button>`;
+  html += `<div class="card" onclick="choose('', true)">+ ${t[lang].add}</div>`;
 
   document.getElementById("app").innerHTML = html;
 }
 
-// 👉 выбор
-function selectManager(name, newUser) {
+function choose(name, newUser) {
   selectedManager = name;
   isNew = newUser;
+  screen = "pin";
   render();
 }
 
-// 🔐 PIN
 function renderPin() {
+  document.getElementById("bottomBar").classList.remove("hidden");
+
   let html = "";
 
   if (isNew) {
-    html += `<input id="name" placeholder="שם" />`;
+    html += `<div class="card">
+      <input id="name" class="input" placeholder="שם" />
+    </div>`;
   }
 
-  html += `<input id="pin" placeholder="${isNew ? t[lang].createPin : t[lang].enterPin}" />`;
-  html += `<button onclick="submitPin()">${t[lang].next}</button>`;
+  html += `<div class="card">
+    <input id="pin" class="input" type="password" placeholder="${isNew ? t[lang].create : t[lang].pin}" />
+  </div>`;
 
+  document.getElementById("mainBtn").innerText = t[lang].next;
   document.getElementById("app").innerHTML = html;
 }
 
-// 🚀 отправка PIN
-async function submitPin() {
+async function nextAction() {
   const pin = document.getElementById("pin").value;
 
   if (isNew) {
     const name = document.getElementById("name").value;
-
     await api("addManager", { name, pin });
-
     selectedManager = name;
-    goToReport();
+    screen = "success";
   } else {
-    const res = await api("login", {
-      name: selectedManager,
-      pin
-    });
-
+    const res = await api("login", { name: selectedManager, pin });
     if (res.success) {
-      goToReport();
+      screen = "success";
     } else {
-      alert(t[lang].wrongPin);
+      alert("Ошибка PIN");
     }
   }
+
+  render();
 }
 
-// 📄 переход к отчету
-function goToReport() {
-  document.getElementById("title").innerText = t[lang].report;
+function renderSuccess() {
+  document.getElementById("bottomBar").classList.remove("hidden");
+
+  document.getElementById("mainBtn").innerText = t[lang].start;
 
   document.getElementById("app").innerHTML = `
     <div class="card">
       <h3>${t[lang].report}</h3>
-      <p>✅ Авторизация успешна</p>
-      <button onclick="startReport()">Начать отчет</button>
+      <p>✅ OK</p>
     </div>
   `;
 }
 
-// 👉 старт отчета
-function startReport() {
-  alert("Дальше делаем форму (следующий шаг)");
-}
-
-// 🚀 старт
 loadManagers();
-
 </script>
 
 </body>
