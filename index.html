@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>Shift Report</title>
+<style>
+body {
+  font-family: Arial;
+  margin: 0;
+  background: #f5f5f5;
+}
+
+.container {
+  max-width: 500px;
+  margin: auto;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+button {
+  padding: 12px;
+  margin-top: 10px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: black;
+  color: white;
+  font-size: 16px;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+}
+
+.lang-btn {
+  background: none;
+  color: black;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="topbar">
+    <h3 id="title">בחירת מנהל</h3>
+    <button class="lang-btn" onclick="toggleLang()">HE / RU</button>
+  </div>
+
+  <div id="app"></div>
+
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbw1nZgGTE24ITeppnLV9jVuY9zlfFzMxVaeP4mG_DGlaGXbIMNim9BSRhC5sllwHF-I/exec";
+
+let lang = "he";
+let managers = [];
+let selectedManager = null;
+let isNew = false;
+
+// 🌍 переводы
+const t = {
+  he: {
+    selectManager: "בחירת מנהל",
+    addManager: "הוסף מנהל",
+    enterPin: "הכנס קוד PIN",
+    createPin: "צור קוד PIN",
+    next: "המשך",
+    wrongPin: "קוד שגוי",
+    report: "דוח"
+  },
+  ru: {
+    selectManager: "Выбор менеджера",
+    addManager: "Добавить менеджера",
+    enterPin: "Введите PIN",
+    createPin: "Создайте PIN",
+    next: "Далее",
+    wrongPin: "Неверный PIN",
+    report: "Отчет"
+  }
+};
+
+// 🔄 язык
+function toggleLang() {
+  lang = lang === "he" ? "ru" : "he";
+  render();
+}
+
+// 📡 запрос
+async function api(action, data = {}) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({ action, ...data })
+  });
+  return res.json();
+}
+
+// 🧠 загрузка менеджеров
+async function loadManagers() {
+  managers = await api("getManagers");
+  render();
+}
+
+// 🖥️ РЕНДЕР
+
+function render() {
+  document.getElementById("title").innerText = t[lang].selectManager;
+
+  if (!selectedManager) {
+    renderManagerSelect();
+  } else {
+    renderPin();
+  }
+}
+
+// 👤 выбор менеджера
+function renderManagerSelect() {
+  let html = "";
+
+  managers.forEach(name => {
+    html += `<button onclick="selectManager('${name}', false)">${name}</button>`;
+  });
+
+  html += `<button onclick="selectManager('', true)">${t[lang].addManager}</button>`;
+
+  document.getElementById("app").innerHTML = html;
+}
+
+// 👉 выбор
+function selectManager(name, newUser) {
+  selectedManager = name;
+  isNew = newUser;
+  render();
+}
+
+// 🔐 PIN
+function renderPin() {
+  let html = "";
+
+  if (isNew) {
+    html += `<input id="name" placeholder="שם" />`;
+  }
+
+  html += `<input id="pin" placeholder="${isNew ? t[lang].createPin : t[lang].enterPin}" />`;
+  html += `<button onclick="submitPin()">${t[lang].next}</button>`;
+
+  document.getElementById("app").innerHTML = html;
+}
+
+// 🚀 отправка PIN
+async function submitPin() {
+  const pin = document.getElementById("pin").value;
+
+  if (isNew) {
+    const name = document.getElementById("name").value;
+
+    await api("addManager", { name, pin });
+
+    selectedManager = name;
+    goToReport();
+  } else {
+    const res = await api("login", {
+      name: selectedManager,
+      pin
+    });
+
+    if (res.success) {
+      goToReport();
+    } else {
+      alert(t[lang].wrongPin);
+    }
+  }
+}
+
+// 📄 переход к отчету
+function goToReport() {
+  document.getElementById("title").innerText = t[lang].report;
+
+  document.getElementById("app").innerHTML = `
+    <div class="card">
+      <h3>${t[lang].report}</h3>
+      <p>✅ Авторизация успешна</p>
+      <button onclick="startReport()">Начать отчет</button>
+    </div>
+  `;
+}
+
+// 👉 старт отчета
+function startReport() {
+  alert("Дальше делаем форму (следующий шаг)");
+}
+
+// 🚀 старт
+loadManagers();
+
+</script>
+
+</body>
+</html>
