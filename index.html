@@ -1,142 +1,132 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Shift Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
 
 <style>
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #f6f6f6;
-  color: #111;
+body{
+  margin:0;
+  background:#0a0a0f;
+  font-family:-apple-system;
+  color:white;
+  display:flex;
+  justify-content:center;
+}
+.app{
+  width:100%;
+  max-width:420px;
+  padding:16px;
+}
+h2{
+  text-align:center;
+  margin:20px 0;
 }
 
-.container {
-  max-width: 480px;
-  margin: auto;
-  padding: 16px;
-  padding-bottom: 100px;
+.card{
+  background:#15151d;
+  padding:16px;
+  border-radius:16px;
+  margin-bottom:12px;
 }
 
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:14px;
+  background:linear-gradient(135deg,#6d5dfc,#8b7cff);
+  color:white;
+  font-size:16px;
+  margin-top:10px;
 }
 
-.title {
-  font-size: 22px;
-  font-weight: 600;
+.hidden{display:none;}
+
+.pin-box{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin:20px 0;
 }
 
-.lang {
-  font-size: 14px;
-  background: none;
-  border: none;
+.pin-cell{
+  width:50px;
+  height:50px;
+  border-radius:12px;
+  border:2px solid #333;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+.pin-dot{
+  width:8px;
+  height:8px;
+  background:white;
+  border-radius:50%;
 }
 
-.button {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  border: none;
-  font-size: 16px;
-  margin-top: 10px;
+.pin-pad{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
 }
 
-.primary {
-  background: black;
-  color: white;
-}
-
-.input {
-  width: 100%;
-  border: none;
-  border-bottom: 1px solid #ddd;
-  padding: 10px 0;
-  font-size: 16px;
-}
-
-.fixed-bottom {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: white;
-  padding: 12px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
-}
-
-.hidden {
-  display: none;
+.pin-btn{
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  background:#1c1c24;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
 }
 </style>
 </head>
 
 <body>
+<div class="app">
 
-<div class="container">
-
-  <div class="topbar">
-    <div class="title" id="title"></div>
-    <button class="lang" onclick="toggleLang()">HE / RU</button>
-  </div>
-
-  <div id="app"></div>
-
+<!-- LOGIN -->
+<div id="login">
+<h2>Кто менеджер</h2>
+<div id="managerList"></div>
+<button onclick="addNew()">+ Добавить менеджера</button>
 </div>
 
-<div class="fixed-bottom hidden" id="bottomBar">
-  <button class="button primary" onclick="nextAction()" id="mainBtn"></button>
+<!-- PIN -->
+<div id="pin" class="hidden">
+<h2>Введите PIN</h2>
+<div class="pin-box">
+<div class="pin-cell"></div><div class="pin-cell"></div>
+<div class="pin-cell"></div><div class="pin-cell"></div>
+</div>
+<div class="pin-pad" id="pad"></div>
+</div>
+
+<div id="loading" class="hidden">
+<h2>⏳ Проверка...</h2>
+</div>
+
+<div id="form" class="hidden">
+<h2>Отчет</h2>
+<button onclick="sendReport()">Отправить тест</button>
+</div>
+
 </div>
 
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbw1nZgGTE24ITeppnLV9jVuY9zlfFzMxVaeP4mG_DGlaGXbIMNim9BSRhC5sllwHF-I/exec";
 
-let lang = "he";
-let screen = "select";
-let managers = [];
-let selectedManager = null;
-let isNew = false;
-
-const t = {
-  he: {
-    select: "בחירת מנהל",
-    add: "הוסף מנהל",
-    pin: "קוד PIN",
-    create: "צור PIN",
-    next: "המשך",
-    report: "דוח",
-    start: "התחל דוח"
-  },
-  ru: {
-    select: "Выбор менеджера",
-    add: "Добавить менеджера",
-    pin: "Введите PIN",
-    create: "Создать PIN",
-    next: "Далее",
-    report: "Отчет",
-    start: "Начать отчет"
-  }
+let state = {
+  user: "",
+  pin: "",
+  isNew: false
 };
 
-function toggleLang() {
-  lang = lang === "he" ? "ru" : "he";
-  document.body.dir = lang === "he" ? "rtl" : "ltr";
-  render();
-}
-
+// 📡 API
 async function api(action, data = {}) {
   const res = await fetch(API_URL, {
     method: "POST",
@@ -145,92 +135,110 @@ async function api(action, data = {}) {
   return res.json();
 }
 
-async function loadManagers() {
-  managers = await api("getManagers");
-  render();
+// 👤 загрузка менеджеров
+async function loadManagers(){
+  const list = await api("getManagers");
+  const container = document.getElementById("managerList");
+  container.innerHTML = "";
+
+  list.forEach(name=>{
+    const btn = document.createElement("button");
+    btn.innerText = name;
+    btn.onclick = ()=>selectUser(name,false);
+    container.appendChild(btn);
+  });
 }
 
-function render() {
-  document.getElementById("title").innerText = t[lang][screen] || "";
-
-  if (screen === "select") renderSelect();
-  if (screen === "pin") renderPin();
-  if (screen === "success") renderSuccess();
+// ➕ новый
+function addNew(){
+  state.isNew = true;
+  selectUser("", true);
 }
 
-function renderSelect() {
-  document.getElementById("bottomBar").classList.add("hidden");
+// 👉 выбор
+function selectUser(name,newUser){
+  state.user = name;
+  state.isNew = newUser;
+  state.pin = "";
+  updatePin();
+  show("pin");
+}
 
-  let html = "";
+// 🔐 PIN клавиатура
+const pad = document.getElementById("pad");
 
-  managers.forEach(name => {
-    html += `<div class="card" onclick="choose('${name}', false)">${name}</div>`;
+[1,2,3,4,5,6,7,8,9,"←",0].forEach(n=>{
+  const b=document.createElement("div");
+  b.className="pin-btn";
+  b.innerText=n;
+
+  b.onclick=()=>{
+    if(n==="←") state.pin = state.pin.slice(0,-1);
+    else if(state.pin.length<4) state.pin += n;
+
+    updatePin();
+
+    if(state.pin.length===4) checkPin();
+  };
+
+  pad.appendChild(b);
+});
+
+function updatePin(){
+  document.querySelectorAll(".pin-cell").forEach((c,i)=>{
+    c.innerHTML = i < state.pin.length ? "<div class='pin-dot'></div>" : "";
+  });
+}
+
+// 🔍 проверка
+async function checkPin(){
+  show("loading");
+
+  if(state.isNew){
+    const name = prompt("Имя на иврите");
+    await api("addManager",{ name, pin: state.pin });
+    state.user = name;
+    show("form");
+    return;
+  }
+
+  const res = await api("login",{
+    name: state.user,
+    pin: state.pin
   });
 
-  html += `<div class="card" onclick="choose('', true)">+ ${t[lang].add}</div>`;
-
-  document.getElementById("app").innerHTML = html;
-}
-
-function choose(name, newUser) {
-  selectedManager = name;
-  isNew = newUser;
-  screen = "pin";
-  render();
-}
-
-function renderPin() {
-  document.getElementById("bottomBar").classList.remove("hidden");
-
-  let html = "";
-
-  if (isNew) {
-    html += `<div class="card">
-      <input id="name" class="input" placeholder="שם" />
-    </div>`;
-  }
-
-  html += `<div class="card">
-    <input id="pin" class="input" type="password" placeholder="${isNew ? t[lang].create : t[lang].pin}" />
-  </div>`;
-
-  document.getElementById("mainBtn").innerText = t[lang].next;
-  document.getElementById("app").innerHTML = html;
-}
-
-async function nextAction() {
-  const pin = document.getElementById("pin").value;
-
-  if (isNew) {
-    const name = document.getElementById("name").value;
-    await api("addManager", { name, pin });
-    selectedManager = name;
-    screen = "success";
+  if(res.success){
+    show("form");
   } else {
-    const res = await api("login", { name: selectedManager, pin });
-    if (res.success) {
-      screen = "success";
-    } else {
-      alert("Ошибка PIN");
-    }
+    alert("Неверный PIN");
+    state.pin="";
+    updatePin();
+    show("pin");
   }
-
-  render();
 }
 
-function renderSuccess() {
-  document.getElementById("bottomBar").classList.remove("hidden");
+// 📄 отправка теста
+async function sendReport(){
+  await api("submitReport",{
+    report:{
+      date: new Date().toISOString(),
+      manager: state.user,
+      data:{ test:true }
+    }
+  });
 
-  document.getElementById("mainBtn").innerText = t[lang].start;
-
-  document.getElementById("app").innerHTML = `
-    <div class="card">
-      <h3>${t[lang].report}</h3>
-      <p>✅ OK</p>
-    </div>
-  `;
+  alert("Отправлено");
 }
 
+// 🧭 навигация
+function show(id){
+  ["login","pin","form","loading"].forEach(x=>{
+    document.getElementById(x).classList.add("hidden");
+  });
+  document.getElementById(id).classList.remove("hidden");
+}
+
+// 🚀 старт
 loadManagers();
 </script>
 
