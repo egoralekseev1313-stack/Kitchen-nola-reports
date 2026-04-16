@@ -88,7 +88,19 @@ button{
 
 <body>
 <div class="app">
-
+<div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+  <button onclick="toggleLang()" style="
+    background:#1c1c24;
+    border:none;
+    border-radius:10px;
+    padding:6px 10px;
+    font-size:12px;
+    color:#aaa;
+  ">
+      🌐
+  </button>
+</div>
+  
 <!-- LOGIN -->
 <div id="login">
 <h2>Кто менеджер</h2>
@@ -240,6 +252,42 @@ function show(id){
 
 // 🚀 старт
 loadManagers();
+
+let lang = "he";
+
+const t = {
+  he: {
+    title: "מי המנהל",
+    enterPin: "הכנס קוד PIN",
+    checking: "בודק...",
+    add: "הוסף מנהל",
+    wrongPin: "קוד שגוי",
+    report: "דוח",
+    send: "שלח"
+  },
+  ru: {
+    title: "Кто менеджер",
+    enterPin: "Введите PIN",
+    checking: "Проверка...",
+    add: "Добавить менеджера",
+    wrongPin: "Неверный PIN",
+    report: "Отчет",
+    send: "Отправить"
+  }
+};
+
+function toggleLang(){
+  lang = lang === "he" ? "ru" : "he";
+  applyLang();
+}
+function applyLang(){
+  document.body.dir = lang === "he" ? "rtl" : "ltr";
+
+  document.querySelectorAll("[data-t]").forEach(el=>{
+    const key = el.dataset.t;
+    el.innerText = t[lang][key] || key;
+  });
+}
 </script>
 
 </body>
